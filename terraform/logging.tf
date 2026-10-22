@@ -36,9 +36,9 @@ resource "aws_iam_role_policy" "vpc_flow_logs" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "WriteFlowLogs"
-        Effect   = "Allow"
-        Action   = [
+        Sid    = "WriteFlowLogs"
+        Effect = "Allow"
+        Action = [
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "logs:DescribeLogStreams"
@@ -60,7 +60,7 @@ resource "aws_flow_log" "vpc" {
   traffic_type         = "ALL"
   log_destination_type = "cloud-watch-logs"
   log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
-  iam_role_arn          = aws_iam_role.vpc_flow_logs.arn
+  iam_role_arn         = aws_iam_role.vpc_flow_logs.arn
 
   depends_on = [aws_iam_role_policy.vpc_flow_logs]
 
