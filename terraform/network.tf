@@ -33,9 +33,10 @@ resource "aws_subnet" "public_b" {
 
 # PRIVATE SUBNET A
 resource "aws_subnet" "private_a" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.private_subnet_cidr
-  availability_zone = data.aws_availability_zones.available.names[0]
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.private_subnet_cidr
+  availability_zone       = data.aws_availability_zones.available.names[0]
+  map_public_ip_on_launch = false
 
   tags = merge(local.common_tags, {
     Name     = "${local.name_prefix}-private-a"
@@ -46,9 +47,10 @@ resource "aws_subnet" "private_a" {
 
 # PRIVATE SUBNET B
 resource "aws_subnet" "private_b" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.private_subnet_b_cidr
-  availability_zone = data.aws_availability_zones.available.names[1]
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.private_subnet_b_cidr
+  availability_zone       = data.aws_availability_zones.available.names[1]
+  map_public_ip_on_launch = false
 
   tags = merge(local.common_tags, {
     Name     = "${local.name_prefix}-private-b"

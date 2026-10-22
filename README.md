@@ -13,7 +13,9 @@ SecureCloudLab is a portfolio project for learning AWS networking, Terraform, an
 - VPC Flow Logs delivered to a CloudWatch Logs group with 30-day retention.
 - A dedicated EC2 workload IAM role with no permissions attached by default.
 - A multi-region CloudTrail trail writing management events to a dedicated S3 bucket with public access blocked, versioning, SSE-S3 encryption, and log-file validation.
-- Gitleaks secret scanning on pushes and pull requests.
+- AWS Config recording supported resource types and evaluating managed rules for S3 public access, root MFA, CloudTrail, and EBS volume encryption.
+- Amazon GuardDuty findings routed through EventBridge to an SNS topic for security alerts.
+- GitHub Actions pull-request checks for Terraform formatting, validation, Terraform tests, TFLint, Checkov, and Gitleaks.
 - Common tags for project, environment, owner, and Terraform management.
 
 Default subnet CIDRs are `10.0.1.0/24` and `10.0.2.0/24` for public subnets, and `10.0.11.0/24` and `10.0.12.0/24` for private subnets, inside `10.0.0.0/16`.
@@ -29,12 +31,16 @@ Default subnet CIDRs are `10.0.1.0/24` and `10.0.2.0/24` for public subnets, and
 - `terraform/security.tf`: restrictive baseline security group.
 - `terraform/logging.tf`: VPC Flow Logs and CloudWatch delivery role.
 - `terraform/iam.tf`: dedicated workload IAM role.
-- `terraform/cloudtrail.tf`: CloudTrail and protected S3 audit bucket.
-- `terraform/backend.tf.example`: example only; remote state backend is not enabled.
-- `.github/workflows/terraform.yml`: Terraform validation and Checkov scan.
+- `terraform/cloudtrail.tf`: CloudTrail and protected S3 audit bucket shared with AWS Config delivery.
+- `terraform/config.tf`: AWS Config recorder and managed compliance rules.
+- `terraform/guardduty.tf`: GuardDuty, EventBridge routing, and SNS alert topic.
+- `terraform/tests/baseline.tftest.hcl`: plan-only tests with mocked AWS data sources.
+- `.github/workflows/terraform.yml`: formatting, validation, Terraform tests, TFLint, and Checkov.
 - `.github/workflows/secrets.yml`: Gitleaks secret scanning.
+- `.tflint.hcl`: TFLint AWS ruleset.
 - `docs/iam-audit-and-state.md`: IAM, audit logging, and state security decisions.
 - `docs/secret-incident-response.md`: response procedure for exposed secrets.
+- `docs/security-monitoring.md`: AWS Config, GuardDuty, EventBridge, and alert setup.
 
 ## Local verification
 
@@ -44,19 +50,23 @@ Run from the `terraform` directory:
 terraform fmt -check -recursive
 terraform init -backend=false
 terraform validate
+terraform test
+tflint --recursive
+checkov --directory . --framework terraform
 ```
 
-A plan reads AWS data sources such as available Availability Zones and the current AWS account identity, so it requires working AWS credentials and network access. The GitHub Actions workflow deliberately does not run `terraform plan`, `apply`, or `destroy`; no AWS resources are created by CI.
+The GitHub Actions workflow deliberately does not run `terraform plan`, `apply`, or `destroy`; Terraform tests use mocked data and plan-only assertions. No AWS resources are created by CI.
 
 ## Security, state, and cost notes
 
-- CloudTrail, S3 storage/requests, and CloudWatch Logs can incur charges after deployment. Review current AWS pricing before applying.
-- The CloudTrail S3 bucket blocks public access, enforces bucket-owner object ownership, enables versioning, and uses SSE-S3 (AES-256). SSE-KMS can be considered if customer-managed key controls are required.
+- AWS Config recording and managed rules, GuardDuty analysis, CloudTrail, S3 storage/requests, and CloudWatch Logs can incur charges after deployment. Review current AWS pricing and enablement scope before applying.
+- The CloudTrail/AWS Config S3 bucket blocks public access, enforces bucket-owner object ownership, enables versioning, and uses SSE-S3 (AES-256). SSE-KMS can be considered if customer-managed key controls are required.
+- GuardDuty findings are routed to an SNS topic. After deployment, subscribe an approved email or other endpoint to the topic and confirm the subscription to receive notifications.
 - The workload role has no attached permissions by default. Add only scoped permissions once a workload requirement is defined; do not create static access keys.
 - No NAT Gateway is provisioned. Private subnets have no direct Internet route.
 - The baseline security group denies ingress and egress and is not attached to a workload.
 - No remote Terraform backend is active. `terraform/backend.tf.example` documents a possible S3 backend with encryption and native state locking, but the state bucket and access controls must be prepared separately before migration.
-- The Checkov scan currently reports findings without failing CI. Review findings before treating the project as production-ready.
+- Checkov findings of medium severity or higher fail CI; low/informational findings are reported without failing the job. Review all findings before treating the project as production-ready.
 - Gitleaks helps detect secrets but does not replace credential rotation or incident response. Follow `docs/secret-incident-response.md` if a secret is exposed.
 - This is a learning portfolio, not a production-ready landing zone.
 
