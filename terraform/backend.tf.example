@@ -1,0 +1,23 @@
+# Example only: do not enable until the state bucket and lock table have been
+# created separately, secured, and verified. Terraform backend blocks cannot
+# interpolate variables. Never commit credentials; use an AWS role/profile.
+#
+# terraform {
+#   backend "s3" {
+#     bucket       = "REPLACE_WITH_UNIQUE_STATE_BUCKET"
+#     key          = "securecloudlab/terraform.tfstate"
+#     region       = "eu-west-3"
+#     encrypt      = true
+#     use_lockfile = true
+#   }
+# }
+#
+# Required preparation:
+# - Create the bucket separately with Block Public Access, versioning, and SSE-KMS
+#   or SSE-S3 encryption; restrict access to named deployment roles.
+# - Enable and test S3 data protection and recovery controls.
+# - Ensure the role used by Terraform has only the bucket/object actions needed
+#   for this state key, plus the required locking operations.
+# - Run 'terraform init -migrate-state' only after reviewing and backing up local state.
+#
+# This file is deliberately named .example and is not an active backend config.
