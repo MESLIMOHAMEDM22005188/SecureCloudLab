@@ -1,6 +1,6 @@
 # Terraform infrastructure
 
-This directory defines the SecureCloudLab AWS network foundation and baseline security controls.
+This directory defines the SecureCloudLab AWS network foundation, IAM baseline, and audit controls.
 
 ## Files
 
@@ -14,6 +14,9 @@ This directory defines the SecureCloudLab AWS network foundation and baseline se
 | `nacls.tf` | Separate stateless network ACLs for public and private subnets |
 | `security.tf` | Baseline security group with no ingress or egress |
 | `logging.tf` | VPC Flow Logs, CloudWatch log group and delivery IAM role |
+| `iam.tf` | Dedicated EC2 workload role without attached permissions by default |
+| `cloudtrail.tf` | Multi-region CloudTrail and protected S3 audit bucket |
+| `backend.tf.example` | Inactive example of an encrypted S3 backend with native state locking |
 | `outputs.tf` | VPC and subnet outputs |
 | `terraform.tfvars.example` | Example values without secrets |
 
@@ -27,22 +30,31 @@ terraform init -backend=false
 terraform validate
 ```
 
-`terraform plan` queries AWS for available Availability Zones and therefore requires working AWS credentials and network access. The CI workflow intentionally avoids `plan`, `apply` and `destroy`.
+`terraform plan` reads AWS data sources for available Availability Zones and the current account identity, so it requires working AWS credentials and network access. CI intentionally avoids `plan`, `apply` and `destroy`.
+
+## IAM and audit controls
+
+- The workload role has a dedicated EC2 trust policy and no attached permissions by default. Add narrowly scoped policies only after defining the workload.
+- CloudTrail records management events in a multi-region trail and validates log files.
+- The audit S3 bucket blocks public access, enforces bucket-owner object ownership, enables versioning, and enforces SSE-S3 encryption.
+- CloudTrail delivery is restricted by a bucket policy to the CloudTrail service and the expected trail ARN.
 
 ## Network security decisions
 
 - The public route table has a default route to the Internet Gateway. The private route table has no default Internet route.
 - Public subnet NACLs allow VPC-internal traffic, inbound TCP 80/443, and TCP ephemeral ports (1024–65535) needed for stateless return traffic. They do not allow inbound SSH by default.
-- Private subnet NACLs allow only traffic within the VPC CIDR. Because NACLs are stateless, rules must be updated deliberately if the private subnet traffic requirements change.
-- The baseline security group denies all inbound and outbound traffic and is not attached to a workload. Add narrowly scoped rules only after defining a workload requirement.
+- Private subnet NACLs allow only traffic within the VPC CIDR.
+- The baseline security group denies all inbound and outbound traffic and is not attached to a workload.
 - Private subnets do not automatically assign public IPv4 addresses.
 
 ## NAT Gateway and costs
 
-A NAT Gateway is intentionally **not provisioned**. It would allow private-subnet resources to initiate outbound connections without accepting unsolicited inbound connections, but it incurs hourly and data-processing charges (and typically requires one per Availability Zone for resilient production designs). For this learning baseline, private subnets remain without direct Internet egress to avoid unnecessary cost. Revisit NAT only when a concrete outbound-update or package-download requirement exists, and review current AWS pricing first.
+A NAT Gateway is intentionally not provisioned. It incurs hourly and data-processing charges. Revisit NAT only when a concrete outbound-connectivity requirement exists and current pricing has been reviewed.
 
-## Logging and deployment
+CloudTrail, S3 storage/requests, and CloudWatch ingestion/storage may incur charges after deployment. Check current AWS pricing before any apply.
 
-VPC Flow Logs are configured to send all VPC traffic to CloudWatch Logs with 30-day retention. CloudWatch ingestion and storage may incur charges after deployment. Review AWS pricing and permissions before any apply.
+## Terraform state
 
-No remote backend is configured. This is a learning environment, not a production-ready landing zone.
+No remote backend is active. `backend.tf.example` is documentation only; Terraform will not load it as a backend configuration. Before enabling remote state, create and secure the state bucket separately, enable versioning and encryption, restrict access to deployment roles, and confirm the locking method is supported by the installed Terraform version. Back up local state before migration.
+
+This is a learning environment, not a production-ready landing zone.
