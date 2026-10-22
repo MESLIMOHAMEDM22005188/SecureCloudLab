@@ -1,25 +1,11 @@
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 
-terraform {
-  required_version = ">= 1.5.0"
-
-  required_providers {
-    local = {
-      source  = "hashicorp/local"
-      version = "~> 2.9"
-    }
+  tags = {
+    Name        = "securecloudlab-${var.environment}"
+    Environment = var.environment
+    Project     = "SecureCloudLab"
   }
 }
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = "dev"
-}
-
-resource "local_file" "security_report" {
-  filename             = "${path.module}/security-report.txt"
-  content              = "SecureCloudLab environment: ${var.environment}\n"
-  file_permission      = "0600"
-  directory_permission = "0700"
-}
-
