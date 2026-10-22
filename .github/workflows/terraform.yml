@@ -6,12 +6,16 @@ on:
     paths:
       - "terraform/**"
       - ".github/workflows/terraform.yml"
+      - "README.md"
+      - ".gitignore"
+      - "docs/**"
   pull_request:
     branches: ["main"]
     paths:
       - "terraform/**"
       - ".github/workflows/terraform.yml"
       - "README.md"
+      - ".gitignore"
       - "docs/**"
   workflow_dispatch:
 
