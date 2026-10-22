@@ -34,7 +34,7 @@ For pull requests that change Terraform, workflow files, the TFLint configuratio
 - `terraform init -backend=false` and `terraform validate` — initialization or validation failures block the workflow.
 - `terraform test` — plan-only assertions use mocked AWS data sources and do not deploy resources.
 - TFLint with the AWS ruleset — lint failures block the workflow.
-- Checkov — medium/high/critical findings block the workflow; low/informational findings are non-blocking.
+- Checkov — scans the Terraform configuration and reports findings without failing CI while the baseline is triaged. Treat findings as remediation work; do not interpret a successful job as proof of compliance.
 - Gitleaks — scans pushes and pull requests.
 
 CI does not run `terraform plan`, `apply`, or `destroy` and does not require AWS credentials. Review scanner findings rather than suppressing them without justification.
