@@ -1,28 +1,58 @@
-# PUBLIC SUBNET
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = "${var.aws_region}a"
-  map_public_ip_on_launch = var.map_public_ip_on_launch
-
-  tags = {
-    Name        = "securecloudlab-public-${var.environment}"
-    Environment = var.environment
-    Project     = "SecureCloudLab"
-    Tier        = "public"
-  }
+# Retrieve the available Availability Zones in the selected region
+data "aws_availability_zones" "available" {
+  state = "available"
 }
 
-# PRIVATE SUBNET
-resource "aws_subnet" "private" {
+# PUBLIC SUBNET A
+resource "aws_subnet" "public_a" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.public_subnet_cidr
+  availability_zone       = data.aws_availability_zones.available.names[0]
+  map_public_ip_on_launch = var.map_public_ip_on_launch
+
+  tags = merge(local.common_tags, {
+    Name     = "${local.name_prefix}-public-a"
+    Function = "network"
+    Tier     = "public"
+  })
+}
+
+# PUBLIC SUBNET B
+resource "aws_subnet" "public_b" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = var.public_subnet_b_cidr
+  availability_zone       = data.aws_availability_zones.available.names[1]
+  map_public_ip_on_launch = var.map_public_ip_on_launch
+
+  tags = merge(local.common_tags, {
+    Name     = "${local.name_prefix}-public-b"
+    Function = "network"
+    Tier     = "public"
+  })
+}
+
+# PRIVATE SUBNET A
+resource "aws_subnet" "private_a" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = var.private_subnet_cidr
-  availability_zone = "${var.aws_region}a"
+  availability_zone = data.aws_availability_zones.available.names[0]
 
-  tags = {
-    Name        = "securecloudlab-private-${var.environment}"
-    Environment = var.environment
-    Project     = "SecureCloudLab"
-    Tier        = "private"
-  }
+  tags = merge(local.common_tags, {
+    Name     = "${local.name_prefix}-private-a"
+    Function = "network"
+    Tier     = "private"
+  })
+}
+
+# PRIVATE SUBNET B
+resource "aws_subnet" "private_b" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_b_cidr
+  availability_zone = data.aws_availability_zones.available.names[1]
+
+  tags = merge(local.common_tags, {
+    Name     = "${local.name_prefix}-private-b"
+    Function = "network"
+    Tier     = "private"
+  })
 }

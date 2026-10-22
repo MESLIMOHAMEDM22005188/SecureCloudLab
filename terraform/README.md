@@ -1,29 +1,28 @@
-# Terraform configuration
+﻿# Terraform infrastructure
 
-This directory contains the SecureCloudLab infrastructure-as-code example.
+This directory defines the current SecureCloudLab AWS network foundation.
 
-## Resources
+## Files
 
-- Provider: `hashicorp/local` pinned through `.terraform.lock.hcl`.
-- Input: `environment`, a string that defaults to `dev`.
-- Resource: `local_file.security_report`, which renders the environment name to
-  `security-report.txt` when explicitly applied.
+| File | Responsibility |
+|---|---|
+| `versions.tf` | Terraform/provider versions and AWS region configuration |
+| `variables.tf` | Input variables and basic input validation |
+| `main.tf` | VPC, common tags and naming prefix |
+| `network.tf` | Public and private subnets |
+| `routing.tf` | Internet Gateway and route tables |
+| `security.tf` | Reserved for future security controls |
+| `logging.tf` | Reserved for future logging controls |
+| `outputs.tf` | VPC and subnet outputs |
+| `terraform.tfvars.example` | Example values without secrets |
 
-The resource keeps `file_permission = "0600"` and
-`directory_permission = "0700"`. These values are intentional and must not be
-weakened to satisfy a scanner or local development constraint.
-
-## Checks
+## Validate locally
 
 ```powershell
-terraform fmt -check
+terraform fmt -recursive
+terraform init -backend=false
 terraform validate
-terraform plan -input=false -lock=false
+terraform plan
 ```
 
-The expected plan contains one local create action and no cloud changes. Do not
-run `terraform apply` or `terraform destroy` for the verification workflow.
-
-Generated provider files (`.terraform/`), state files, crash logs, and the
-generated report are excluded from Git. Keep `.terraform.lock.hcl` under
-version control to ensure deterministic provider selection.
+Do not run `terraform apply` unless deployment has been explicitly approved and its costs and permissions have been reviewed.

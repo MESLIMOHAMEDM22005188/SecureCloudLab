@@ -1,58 +1,49 @@
-# SecureCloudLab
+﻿# SecureCloudLab
 
-SecureCloudLab is a local Cloud Security and DevSecOps portfolio laboratory. It
-uses Terraform to model a deliberately small, inspectable artifact and Checkov
-to demonstrate infrastructure-as-code security scanning without provisioning
-cloud infrastructure or incurring cloud costs.
+Portfolio project for learning AWS infrastructure, Terraform and cloud security practices.
 
 ## Current architecture
 
-The Terraform configuration uses the `hashicorp/local` provider only. The
-`local_file.security_report` resource writes a report for the selected
-`environment` (default: `dev`) to `terraform/security-report.txt`. Terraform
-configures the report with `0600` permissions and its parent directory with
-`0700` permissions.
+- One VPC with a configurable IPv4 CIDR.
+- One public subnet and one private subnet, currently configured in the same Availability Zone.
+- An Internet Gateway and a public route table with a default route to the Internet Gateway.
+- A private route table with no default Internet route.
+- DNS support and DNS hostnames configurable through input variables.
+- Common resource tags: Project, Environment, Owner and ManagedBy.
+- Terraform outputs for the VPC and subnet identifiers.
 
-No cloud provider, remote state backend, secret, credential, or paid resource
-is defined. The report is generated only by `terraform apply`, which is not a
-required verification step and must not be run for routine checks.
+## Repository structure
 
-## Prerequisites
+- `terraform/versions.tf`: Terraform and AWS provider constraints.
+- `terraform/variables.tf`: input variables and validations.
+- `terraform/main.tf`: VPC, naming convention and common tags.
+- `terraform/network.tf`: subnet resources.
+- `terraform/routing.tf`: Internet Gateway and route tables.
+- `terraform/security.tf`: reserved for future security resources.
+- `terraform/logging.tf`: reserved for future logging resources.
+- `terraform/outputs.tf`: useful resource outputs.
+- `terraform/terraform.tfvars.example`: non-secret example configuration.
 
-- Terraform 1.5 or later.
-- Python with Checkov installed. This workspace uses
-  `C:\Users\mesli\SecureCloudLab-tools\Scripts\python.exe` and
-  `C:\Users\mesli\SecureCloudLab-tools\Scripts\checkov`.
+## Local checks
 
-## Verification
-
-Run the following from the repository root:
+Run from the `terraform` directory:
 
 ```powershell
-Set-Location terraform
-terraform fmt -check
+terraform fmt -recursive
+terraform init -backend=false
 terraform validate
-terraform plan -input=false -lock=false
-Set-Location ..
-& "C:\Users\mesli\SecureCloudLab-tools\Scripts\python.exe" `
-  "C:\Users\mesli\SecureCloudLab-tools\Scripts\checkov" `
-  -d terraform --framework terraform --output cli --compact
+terraform plan
 ```
 
-`terraform plan` is read-only with respect to managed resources: it previews
-the local report but does not create it. Do not run `terraform apply` or
-`terraform destroy` as part of this portfolio validation.
+`terraform plan` may require AWS provider configuration or credentials depending on the provider and resources. These commands do not deploy infrastructure; `terraform apply` is not part of the validation workflow.
 
-## Security limitations
+## Current limitations
 
-- Windows ACLs are not equivalent to POSIX mode bits; `0600` and `0700` are
-  enforced by the local provider where supported and must be verified on the
-  target platform after an apply.
-- Checkov may produce zero checks for this configuration because it has no
-  built-in policies for the `local_file` resource. A zero-check scan is not a
-  security attestation.
-- This lab has no cloud resources yet, so it does not demonstrate IAM, network,
-  encryption, logging, state-backend, or secret-management controls.
+- No Security Groups or Network ACL policies are defined in this stage.
+- VPC Flow Logs, CloudTrail, GuardDuty and alerting are not configured here.
+- The public and private subnets currently use the same Availability Zone.
+- The private subnet has no NAT Gateway or outbound Internet route.
+- Terraform state has not been configured with a remote backend.
+- The project is a learning portfolio and is not yet a production-ready landing zone.
 
-See `terraform/README.md` for implementation details and `docs/README.md` for
-the security scope.
+Never commit access keys, passwords, state files, plan files or secret variable files.
