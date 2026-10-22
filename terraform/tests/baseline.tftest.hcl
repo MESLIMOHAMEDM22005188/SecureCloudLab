@@ -13,6 +13,14 @@ mock_provider "aws" {
       user_id    = "AIDATESTUSER"
     }
   }
+
+  # The provider mock otherwise supplies arbitrary data for policy-document
+  # data sources; use valid JSON so AWS provider schema checks remain meaningful.
+  mock_data "aws_iam_policy_document" {
+    defaults = {
+      json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}"
+    }
+  }
 }
 
 run "network_and_security_baseline" {
