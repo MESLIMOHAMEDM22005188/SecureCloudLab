@@ -1,9 +1,9 @@
 # PUBLIC SUBNET
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
+  cidr_block              = var.public_subnet_cidr
   availability_zone       = "${var.aws_region}a"
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = var.map_public_ip_on_launch
 
   tags = {
     Name        = "securecloudlab-public-${var.environment}"
@@ -16,7 +16,7 @@ resource "aws_subnet" "public" {
 # PRIVATE SUBNET
 resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.2.0/24"
+  cidr_block        = var.private_subnet_cidr
   availability_zone = "${var.aws_region}a"
 
   tags = {
