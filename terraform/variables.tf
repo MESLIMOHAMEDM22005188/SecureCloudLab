@@ -104,13 +104,3 @@ variable "map_public_ip_on_launch" {
   default     = true
 }
 
-variable "allowed_ssh_cidr" {
-  description = "Trusted IPv4 CIDR reserved for a future SSH ingress rule"
-  type        = string
-  default     = "127.0.0.1/32"
-
-  validation {
-    condition     = can(cidrnetmask(var.allowed_ssh_cidr)) && var.allowed_ssh_cidr != "0.0.0.0/0"
-    error_message = "allowed_ssh_cidr must be a valid IPv4 CIDR and must not allow the entire Internet."
-  }
-}
