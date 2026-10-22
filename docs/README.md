@@ -2,27 +2,27 @@
 
 ## Scope
 
-SecureCloudLab currently validates a minimal Terraform configuration locally.
-The architecture consists of Terraform, the `hashicorp/local` provider, and a
-single protected local report. Checkov scans the Terraform source as part of
-the DevSecOps verification workflow.
+SecureCloudLab defines an AWS VPC with two public and two private subnets across two available Availability Zones. Terraform manages the VPC, Internet Gateway, route tables, a restrictive baseline security group, and VPC Flow Logs delivered to CloudWatch Logs.
 
-## Security posture
+GitHub Actions performs Terraform formatting, initialization and validation on pushes and pull requests. A Checkov scan reports infrastructure-as-code findings; its current invocation is non-blocking, so findings must still be reviewed rather than interpreted as a passing security certification.
 
-The configuration contains no cloud credentials, secrets, cloud providers,
-remote state, or billable infrastructure. The local report is configured with
-`0600` file permissions and `0700` directory permissions. These controls are
-configuration intent; platform-specific file-system behavior must be checked
-after an explicit apply.
+## Security controls
 
-## Scanner coverage
+- Public subnets use a route table with a default route to the Internet Gateway.
+- Private subnets use a separate route table without a default Internet route.
+- The baseline security group has no ingress or egress rules and is not attached to a workload.
+- VPC Flow Logs are configured for all traffic and sent to a CloudWatch log group with 30-day retention.
+- The Flow Logs delivery role is restricted to writing to the configured log group.
+- Git ignore rules exclude local state, plan files, credentials, and editor files.
 
-Checkov evaluates resources only when a matching policy exists. The current
-`local_file` resource has no built-in Terraform checks in the installed Checkov
-release, so a scan can correctly report zero passed and zero failed checks.
-That result means no applicable policy was evaluated, not that the project is
-fully secure.
+## Limitations and operational notes
 
-Future cloud resources should add controls for least-privilege IAM, network
-exposure, encryption, audit logging, secret handling, and protected remote
-Terraform state before deployment.
+- Flow Logs and CloudWatch Logs may incur charges after deployment.
+- No NAT Gateway is provided, so private subnets have no Internet egress.
+- No CloudTrail trail, GuardDuty configuration, alerting, or workload IAM roles are included yet.
+- The security group is a baseline only; it does not protect a workload until attached.
+- Terraform uses local state by default; a protected remote backend and locking are not configured.
+- CIDR inputs are checked for valid IPv4 notation, but overlap and containment between custom CIDRs still require review.
+- CI does not deploy resources and does not run a plan requiring AWS credentials.
+
+A successful Terraform validation confirms syntax and internal references, not that the architecture is production-ready or that every security control is effective.

@@ -1,8 +1,12 @@
-
 variable "aws_region" {
   description = "AWS region used by SecureCloudLab"
   type        = string
   default     = "eu-west-3"
+
+  validation {
+    condition     = length(trimspace(var.aws_region)) > 0
+    error_message = "aws_region must not be empty."
+  }
 }
 
 variable "environment" {
@@ -28,56 +32,56 @@ variable "owner" {
 }
 
 variable "vpc_cidr" {
-  description = "CIDR block of the main VPC"
+  description = "IPv4 CIDR block of the main VPC"
   type        = string
   default     = "10.0.0.0/16"
 
   validation {
-    condition     = can(cidrhost(var.vpc_cidr, 0))
+    condition     = can(cidrnetmask(var.vpc_cidr))
     error_message = "vpc_cidr must be a valid IPv4 CIDR block."
   }
 }
 
 variable "public_subnet_cidr" {
-  description = "CIDR block of the first public subnet"
+  description = "IPv4 CIDR block of the first public subnet"
   type        = string
   default     = "10.0.1.0/24"
 
   validation {
-    condition     = can(cidrhost(var.public_subnet_cidr, 0))
+    condition     = can(cidrnetmask(var.public_subnet_cidr))
     error_message = "public_subnet_cidr must be a valid IPv4 CIDR block."
   }
 }
 
 variable "public_subnet_b_cidr" {
-  description = "CIDR block of the second public subnet"
+  description = "IPv4 CIDR block of the second public subnet"
   type        = string
   default     = "10.0.2.0/24"
 
   validation {
-    condition     = can(cidrhost(var.public_subnet_b_cidr, 0))
+    condition     = can(cidrnetmask(var.public_subnet_b_cidr))
     error_message = "public_subnet_b_cidr must be a valid IPv4 CIDR block."
   }
 }
 
 variable "private_subnet_cidr" {
-  description = "CIDR block of the first private subnet"
+  description = "IPv4 CIDR block of the first private subnet"
   type        = string
   default     = "10.0.11.0/24"
 
   validation {
-    condition     = can(cidrhost(var.private_subnet_cidr, 0))
+    condition     = can(cidrnetmask(var.private_subnet_cidr))
     error_message = "private_subnet_cidr must be a valid IPv4 CIDR block."
   }
 }
 
 variable "private_subnet_b_cidr" {
-  description = "CIDR block of the second private subnet"
+  description = "IPv4 CIDR block of the second private subnet"
   type        = string
   default     = "10.0.12.0/24"
 
   validation {
-    condition     = can(cidrhost(var.private_subnet_b_cidr, 0))
+    condition     = can(cidrnetmask(var.private_subnet_b_cidr))
     error_message = "private_subnet_b_cidr must be a valid IPv4 CIDR block."
   }
 }
@@ -101,12 +105,12 @@ variable "map_public_ip_on_launch" {
 }
 
 variable "allowed_ssh_cidr" {
-  description = "Trusted IPv4 CIDR for a future SSH ingress rule"
+  description = "Trusted IPv4 CIDR reserved for a future SSH ingress rule"
   type        = string
   default     = "127.0.0.1/32"
 
   validation {
-    condition     = can(cidrhost(var.allowed_ssh_cidr, 0))
-    error_message = "allowed_ssh_cidr must be a valid IPv4 CIDR block."
+    condition     = can(cidrnetmask(var.allowed_ssh_cidr)) && var.allowed_ssh_cidr != "0.0.0.0/0"
+    error_message = "allowed_ssh_cidr must be a valid IPv4 CIDR and must not allow the entire Internet."
   }
 }

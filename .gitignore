@@ -1,4 +1,4 @@
-﻿# Terraform working directory and state
+# Terraform working directory and state
 **/.terraform/*
 *.tfstate
 *.tfstate.*
@@ -12,10 +12,11 @@ crash.*.log
 plan.out
 terraform.out
 
-# Local variable files (example file is intentionally tracked)
+# Local variable files (keep only the example)
 *.tfvars
 *.tfvars.json
 !terraform.tfvars.example
+!**/terraform.tfvars.example
 
 # Credentials, keys and local environment files
 .env
@@ -36,6 +37,7 @@ secrets.*
 .DS_Store
 Thumbs.db
 
-# Temporary backups
+# Temporary backups and local test artifacts
 *.bak
 *.bak-*
+*.backup
