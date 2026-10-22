@@ -5,6 +5,8 @@
 *.tfstate.backup
 crash.log
 crash.*.log
+.terraformrc
+terraform.rc
 
 # Plans and generated outputs
 *.tfplan
@@ -41,3 +43,6 @@ Thumbs.db
 *.bak
 *.bak-*
 *.backup
+
+# Local secret scanner reports
+gitleaks-report.*
