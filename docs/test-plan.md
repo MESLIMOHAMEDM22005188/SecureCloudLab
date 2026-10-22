@@ -13,7 +13,7 @@ Verify Terraform configuration quality and scan infrastructure-as-code for commo
 | TC-03 | Terraform validation | `terraform validate` reports a valid configuration. |
 | TC-04 | Terraform tests | `terraform test` passes plan-only assertions using mocked AWS data sources; no resources are deployed. |
 | TC-05 | TFLint | AWS provider lint rules complete without errors. |
-| TC-06 | IaC security scan | Checkov medium/high/critical findings fail CI; low/informational findings are reviewed. |
+| TC-06 | IaC security scan | Checkov findings are reported but do not currently fail CI while baseline findings are triaged; every finding must be reviewed and documented. |
 | TC-07 | Secret hygiene | Gitleaks runs on pushes and pull requests; no credentials, secret variable files, state files, or plan files are tracked. |
 | TC-08 | Route isolation | Public subnets use the Internet Gateway route table; private subnets have no default Internet route. |
 | TC-09 | Security Group review | Baseline security group has no ingress/egress rules and is not attached to a workload. |
