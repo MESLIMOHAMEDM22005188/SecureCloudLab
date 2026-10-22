@@ -1,19 +1,20 @@
-name: Terraform validation
+name: Terraform security checks
 
 on:
   push:
     branches: ["main"]
     paths:
       - "terraform/**"
-      - ".github/workflows/terraform.yml"
+      - ".github/workflows/**"
+      - ".tflint.hcl"
       - "README.md"
       - ".gitignore"
       - "docs/**"
   pull_request:
-    branches: ["main"]
     paths:
       - "terraform/**"
-      - ".github/workflows/terraform.yml"
+      - ".github/workflows/**"
+      - ".tflint.hcl"
       - "README.md"
       - ".gitignore"
       - "docs/**"
@@ -28,7 +29,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Format and validate Terraform
+    name: Format, validate, test, and scan Terraform
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -53,6 +54,20 @@ jobs:
       - name: Validate configuration
         run: terraform validate -no-color
 
+      - name: Run plan-only Terraform tests
+        run: terraform test -no-color
+
+      - name: Set up TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: Initialize TFLint plugins
+        run: tflint --init
+        working-directory: .
+
+      - name: Run TFLint
+        run: tflint --recursive --format compact
+        working-directory: .
+
       - name: Set up Python for Checkov
         uses: actions/setup-python@v5
         with:
@@ -62,4 +77,4 @@ jobs:
         run: python -m pip install --disable-pip-version-check checkov
 
       - name: Scan Terraform with Checkov
-        run: checkov --directory . --framework terraform --compact --soft-fail
+        run: checkov --directory . --framework terraform --compact --soft-fail-on LOW,INFO
