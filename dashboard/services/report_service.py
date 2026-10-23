@@ -1,142 +1,160 @@
+
+"""SQLite persistence and comparison for Checkov scan reports."""
+
 import json
+import os
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 
-# SecureCloudLab project paths
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-REPORTS_DIR = PROJECT_ROOT / "dashboard" / "reports"
+DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "scans.db"
+DB_PATH = Path(os.getenv("SECURECLOUDLAB_DB_PATH", str(DEFAULT_DB_PATH)))
 
 
-def ensure_reports_directory() -> None:
-    """Create the reports directory if it does not exist."""
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+def _connect() -> sqlite3.Connection:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(DB_PATH, timeout=10)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys = ON")
+    return connection
 
 
-def save_report(
-    report_type: str,
-    report_data: dict[str, Any],
-) -> dict[str, Any]:
-    """
-    Save a security scan report as a JSON file.
+def init_db() -> None:
+    """Create the scan history schema if it does not exist."""
+    with _connect() as connection:
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS scans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                scanned_at TEXT NOT NULL,
+                target TEXT NOT NULL,
+                status TEXT NOT NULL,
+                total_findings INTEGER NOT NULL,
+                severity_counts TEXT NOT NULL,
+                findings_json TEXT NOT NULL
+            )
+        """)
+        connection.execute("""
+            CREATE INDEX IF NOT EXISTS idx_scans_scanned_at
+            ON scans(scanned_at)
+        """)
 
-    Args:
-        report_type: Type of scan, such as 'checkov', 'terraform',
-                     or 'negative-test'.
-        report_data: Results returned by the scan service.
 
-    Returns:
-        A dictionary containing the saved report metadata.
-    """
-    ensure_reports_directory()
+def save_scan(
+    findings: list[dict[str, Any]],
+    target: str = "terraform",
+    status: str = "completed",
+    severity_counts: dict[str, int] | None = None,
+) -> int:
+    """Persist a scan and return its database ID."""
+    from dashboard.services.findings_service import severity_counts as count_severities
 
-    timestamp = datetime.now(timezone.utc)
-    report_id = f"{timestamp.strftime('%Y%m%dT%H%M%SZ')}_{uuid4().hex[:8]}"
+    counts = severity_counts or count_severities(findings)
+    scanned_at = datetime.now(timezone.utc).isoformat()
 
-    report = {
-        "id": report_id,
-        "type": report_type,
-        "timestamp": timestamp.isoformat(),
-        "data": report_data,
-    }
-
-    report_path = REPORTS_DIR / f"{report_id}.json"
-
-    try:
-        report_path.write_text(
-            json.dumps(report, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+    with _connect() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO scans (
+                scanned_at, target, status, total_findings,
+                severity_counts, findings_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                scanned_at,
+                target,
+                status,
+                len(findings),
+                json.dumps(counts),
+                json.dumps(findings),
+            ),
         )
-    except OSError as exc:
-        raise RuntimeError(f"Failed to save report: {exc}") from exc
+        return int(cursor.lastrowid)
+
+
+def list_scans(limit: int = 20) -> list[dict[str, Any]]:
+    """Return the newest scan summaries."""
+    limit = max(1, min(limit, 200))
+    with _connect() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, scanned_at, target, status, total_findings,
+                   severity_counts
+            FROM scans
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["severity_counts"] = json.loads(item["severity_counts"])
+        result.append(item)
+    return result
+
+
+def get_scan(scan_id: int) -> dict[str, Any] | None:
+    """Return one scan with its complete findings."""
+    with _connect() as connection:
+        row = connection.execute(
+            "SELECT * FROM scans WHERE id = ?",
+            (scan_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    result = dict(row)
+    result["severity_counts"] = json.loads(result["severity_counts"])
+    result["findings"] = json.loads(result.pop("findings_json"))
+    return result
+
+
+def get_trends(limit: int = 30) -> list[dict[str, Any]]:
+    """Return chronological scan counts for trend visualizations."""
+    scans = list_scans(limit)
+    return list(reversed(scans))
+
+
+def compare_scans(old_scan_id: int, new_scan_id: int) -> dict[str, Any] | None:
+    """Compare findings using check ID, file path and resource as identity."""
+    old_scan = get_scan(old_scan_id)
+    new_scan = get_scan(new_scan_id)
+
+    if old_scan is None or new_scan is None:
+        return None
+
+    def identity(finding: dict[str, Any]) -> tuple[str, str, str]:
+        return (
+            str(finding.get("check_id", "UNKNOWN")),
+            str(finding.get("file_path", "Unknown")),
+            str(finding.get("resource", "Unknown")),
+        )
+
+    old_findings = {identity(f): f for f in old_scan["findings"]}
+    new_findings = {identity(f): f for f in new_scan["findings"]}
+
+    resolved = [
+        old_findings[key] for key in old_findings.keys() - new_findings.keys()
+    ]
+    introduced = [
+        new_findings[key] for key in new_findings.keys() - old_findings.keys()
+    ]
+    unchanged = [
+        new_findings[key] for key in old_findings.keys() & new_findings.keys()
+    ]
 
     return {
-        "id": report_id,
-        "type": report_type,
-        "timestamp": report["timestamp"],
-        "file": report_path.name,
+        "old_scan_id": old_scan_id,
+        "new_scan_id": new_scan_id,
+        "resolved_count": len(resolved),
+        "introduced_count": len(introduced),
+        "unchanged_count": len(unchanged),
+        "resolved": resolved,
+        "introduced": introduced,
+        "unchanged": unchanged,
     }
-
-
-def list_reports(limit: int = 50) -> list[dict[str, Any]]:
-    """
-    Return the most recent reports, newest first.
-
-    Args:
-        limit: Maximum number of reports to return.
-    """
-    if limit < 1:
-        raise ValueError("Limit must be greater than zero.")
-
-    ensure_reports_directory()
-    reports = []
-
-    for report_path in REPORTS_DIR.glob("*.json"):
-        try:
-            report = json.loads(report_path.read_text(encoding="utf-8"))
-
-            reports.append({
-                "id": report.get("id", report_path.stem),
-                "type": report.get("type", "unknown"),
-                "timestamp": report.get("timestamp"),
-                "file": report_path.name,
-            })
-
-        except (OSError, json.JSONDecodeError):
-            # Ignore unreadable or invalid report files.
-            continue
-
-    reports.sort(
-        key=lambda item: item.get("timestamp") or "",
-        reverse=True,
-    )
-
-    return reports[:limit]
-
-
-def get_report(report_id: str) -> dict[str, Any] | None:
-    """
-    Retrieve a report by its ID.
-
-    Returns None if the report does not exist or is invalid.
-    """
-    # Restrict IDs to prevent path traversal.
-    if (
-        not report_id
-        or len(report_id) > 64
-        or any(char not in "abcdefghijklmnopqrstuvwxyz"
-               "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for char in report_id)
-    ):
-        return None
-
-    report_path = REPORTS_DIR / f"{report_id}.json"
-
-    if not report_path.is_file():
-        return None
-
-    try:
-        report = json.loads(report_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-
-    return report if isinstance(report, dict) else None
-
-
-def delete_report(report_id: str) -> bool:
-    """
-    Delete a report by its ID.
-
-    Returns True if the report was deleted, otherwise False.
-    """
-    if get_report(report_id) is None:
-        return False
-
-    report_path = REPORTS_DIR / f"{report_id}.json"
-
-    try:
-        report_path.unlink()
-        return True
-    except OSError:
-        return False

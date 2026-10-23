@@ -5,6 +5,12 @@ import sysconfig
 from pathlib import Path
 from typing import Any
 
+from dashboard.services.findings_service import (
+    normalize_findings,
+    severity_counts,
+)
+from dashboard.services.report_service import save_scan
+
 
 # SecureCloudLab project root
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
