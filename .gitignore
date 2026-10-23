@@ -46,3 +46,11 @@ Thumbs.db
 
 # Local secret scanner reports
 gitleaks-report.*
+
+# Local dashboard history and generated reports
+dashboard/reports.db
+dashboard/reports/*.json
+dashboard/__pycache__/
+dashboard/services/__pycache__/
+__pycache__/
+.pytest_cache/
