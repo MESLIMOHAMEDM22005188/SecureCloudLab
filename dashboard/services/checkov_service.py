@@ -123,12 +123,16 @@ def run_checkov(
             {
                 "check_id": check.get("check_id"),
                 "check_name": check.get("check_name"),
+                "severity": check.get("severity") or "UNKNOWN",
                 "file_path": check.get("file_path"),
                 "resource": check.get("resource"),
                 "guideline": check.get("guideline"),
             }
             for check in failed_checks
         ]
+
+        from dashboard.services.findings_service import normalize_findings, severity_counts
+        normalized_findings = normalize_findings({"results": failures})
 
         return {
             "success": True,
@@ -137,7 +141,8 @@ def run_checkov(
             "passed": summary.get("passed", len(passed_checks)),
             "failed": summary.get("failed", len(failed_checks)),
             "skipped": summary.get("skipped", 0),
-            "results": failures,
+            "results": normalized_findings,
+            "severity_counts": severity_counts(normalized_findings),
             "stderr": result.stderr,
         }
 
