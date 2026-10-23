@@ -6,7 +6,7 @@ _REMEDIATION_RULES = (
     (("CKV_AWS_20", "CKV_AWS_21", "CKV_AWS_53", "CKV_AWS_54", "S3"), "Review S3 bucket public-access settings, block public access, and use least-privilege bucket policies."),
     (("CKV_AWS_24", "CKV_AWS_25", "SSH", "PORT 22"), "Restrict SSH to an approved administrator CIDR, prefer a managed access path such as AWS Systems Manager, and remove public ingress."),
     (("CKV_AWS_8", "ENCRYPT", "KMS"), "Enable encryption at rest and use an appropriately managed KMS key where required."),
-    (("CKV_AWS_18", "CKV_AWS_ CloudTrail", "CLOUDTRAIL"), "Enable auditable CloudTrail logging, protect log storage, and validate log-file integrity."),
+    (("CKV_AWS_18", "CLOUDTRAIL"), "Enable auditable CloudTrail logging, protect log storage, and validate log-file integrity."),
     (("IAM", "POLICY", "WILDCARD"), "Replace wildcard permissions with actions and resources required by the workload; review trust relationships."),
 )
 
@@ -42,13 +42,19 @@ def normalize_findings(report: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         check_id = str(item.get("check_id") or "UNKNOWN")
         check_name = str(item.get("check_name") or item.get("name") or "Unnamed security check")
-        severity = str(item.get("severity") or "UNKNOWN").upper()
-        if severity not in SEVERITIES:
-            severity = "UNKNOWN"
+        raw_severity = item.get("severity")
+        if raw_severity:
+            severity = str(raw_severity).upper()
+            severity_source = "checkov"
+            if severity not in SEVERITIES:
+                severity = "UNKNOWN"
+        else:
+            severity, severity_source = classify_severity(check_id, check_name)
         findings.append({
             "check_id": check_id,
             "check_name": check_name,
-            "severity": severity,\n            "severity_source": severity_source,
+            "severity": severity,
+            "severity_source": severity_source,
             "file_path": str(item.get("file_path") or item.get("file") or "Unknown"),
             "resource": str(item.get("resource") or "Unknown"),
             "guideline": item.get("guideline"),
@@ -60,5 +66,7 @@ def normalize_findings(report: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def severity_counts(findings: list[dict[str, Any]]) -> dict[str, int]:
-    return {severity: sum(1 for finding in findings if finding.get("severity") == severity)
-            for severity in SEVERITIES}
+    return {
+        severity: sum(1 for finding in findings if finding.get("severity") == severity)
+        for severity in SEVERITIES
+    }
