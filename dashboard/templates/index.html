@@ -380,7 +380,7 @@
 
         .history-row {
             display: grid;
-            grid-template-columns: 1.2fr 1fr 1fr auto;
+            grid-template-columns: 1.2fr 1fr 1fr auto auto auto;
             align-items: center;
             gap: 15px;
             padding: 16px 0;
@@ -911,7 +911,17 @@
                     viewReport(report.id);
                 });
 
-                row.append(type, date, status, view);
+                const exportHtml = document.createElement("a");
+                exportHtml.className = "btn";
+                exportHtml.textContent = "HTML";
+                exportHtml.href = "/api/reports/" + encodeURIComponent(report.id) + "/export.html";
+
+                const exportJson = document.createElement("a");
+                exportJson.className = "btn";
+                exportJson.textContent = "JSON";
+                exportJson.href = "/api/reports/" + encodeURIComponent(report.id) + "/export.json";
+
+                row.append(type, date, status, view, exportHtml, exportJson);
                 historyList.appendChild(row);
             });
 
