@@ -15,7 +15,6 @@ from dashboard.services.checkov_service import (
     run_main_scan,
     run_negative_test,
 )
-from dashboard.services.findings_service import build_findings_summary
 from dashboard.services.report_service import (
     save_report,
     list_reports,
@@ -85,12 +84,3 @@ def report_details(report_id: str):
         raise HTTPException(status_code=404, detail="Report not found")
 
     return report
-
-
-@app.post("/api/security/findings")
-def security_findings():
-    """Run Checkov and return normalized, dashboard-ready security findings."""
-    scan = run_main_scan()
-    if scan.get("success"):
-        save_report("checkov", scan)
-    return build_findings_summary(scan)
