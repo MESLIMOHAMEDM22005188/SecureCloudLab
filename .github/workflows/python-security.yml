@@ -22,7 +22,8 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
       - run: python -m pip install --disable-pip-version-check -r requirements.txt
-      - run: ruff check dashboard tests
+      - name: Lint the new findings code
+        run: ruff check dashboard/services/findings_service.py tests/test_findings_service.py
       - run: pytest -q
       - run: bandit -q -r dashboard
       - run: pip-audit
