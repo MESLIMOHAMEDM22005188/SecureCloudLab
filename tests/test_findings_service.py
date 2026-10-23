@@ -28,7 +28,8 @@ def test_normalize_handles_legacy_checkov_shape_and_missing_fields():
     })
 
     assert findings[0]["check_id"] == "CKV_TEST_1"
-    assert findings[0]["severity"] == "UNKNOWN"
+    assert findings[0]["severity"] == "MEDIUM"
+    assert findings[0]["severity_source"] == "heuristic"
     assert findings[0]["file_path"] == "Unknown"
 
 
