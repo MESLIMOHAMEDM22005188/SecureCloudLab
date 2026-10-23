@@ -787,9 +787,7 @@
         } catch (error) {
             outputStatus.textContent = "Connection error";
             outputContent.textContent =
-                "Could not reach the dashboard API. Make sure FastAPI is running.
-
-" +
+                "Could not reach the dashboard API. Make sure FastAPI is running.\\n\\n" +
                 String(error);
         } finally {
             buttons.forEach(button => button.disabled = false);
