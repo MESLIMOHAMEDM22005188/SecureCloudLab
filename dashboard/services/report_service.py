@@ -112,7 +112,7 @@ def get_report(report_id: str) -> dict[str, Any] | None:
 
 
 def report_trends() -> dict[str, Any]:
-    scans = [r for r in list_reports(200) if r["type"] in {"checkov", "negative-test"}]
+    scans = [r for r in list_reports(200) if r["type"] == "checkov"]
     scans.reverse()
     trend = []
     previous: set[str] | None = None
