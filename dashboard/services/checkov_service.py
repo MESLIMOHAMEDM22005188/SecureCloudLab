@@ -126,6 +126,8 @@ def run_checkov(
                 "file_path": check.get("file_path"),
                 "resource": check.get("resource"),
                 "guideline": check.get("guideline"),
+                "severity": (check.get("severity") or {}).get("severity") if isinstance(check.get("severity"), dict) else check.get("severity"),
+                "resource": check.get("resource"),
             }
             for check in failed_checks
         ]
