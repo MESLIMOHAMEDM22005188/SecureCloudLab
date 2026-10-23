@@ -1,0 +1,28 @@
+name: Python dashboard security checks
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["dashboard/**", "tests/**", "requirements.txt", ".github/workflows/python-security.yml"]
+  pull_request:
+    paths: ["dashboard/**", "tests/**", "requirements.txt", ".github/workflows/python-security.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: python -m pip install --disable-pip-version-check -r requirements.txt
+      - run: ruff check dashboard tests
+      - run: pytest -q
+      - run: bandit -q -r dashboard
+      - run: pip-audit
