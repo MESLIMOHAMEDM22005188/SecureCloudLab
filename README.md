@@ -71,19 +71,3 @@ The GitHub Actions workflow deliberately does not run `terraform plan`, `apply`,
 - This is a learning portfolio, not a production-ready landing zone.
 
 Never commit access keys, passwords, Terraform state, plan files, or secret variable files.
-
-
-## Local security dashboard
-
-The optional FastAPI dashboard provides read-only Terraform formatting, initialization, validation and plan operations, Checkov scans, a deliberately vulnerable negative test, and local JSON report history. It does not expose Terraform apply or destroy endpoints. Run it from the repository root:
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python -m uvicorn dashboard.app:app --reload
-```
-
-Open `http://127.0.0.1:8000`. The normalized findings API is `POST /api/security/findings`; it returns severity counts and actionable fields (check ID, title, resource, file, and remediation guideline). Reports are local runtime output and are excluded from version control. The Python security workflow runs Ruff, pytest, Bandit, and pip-audit on dashboard changes.
-
-**Scope note:** Checkov severity is only included when the scanner supplies it; missing or unrecognized severities are reported as `UNKNOWN`, not guessed. The Terraform CI currently uses Checkov `--soft-fail`, so findings are reported but do not block the workflow.

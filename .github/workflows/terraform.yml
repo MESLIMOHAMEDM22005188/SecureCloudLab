@@ -10,14 +10,6 @@ on:
       - "README.md"
       - ".gitignore"
       - "docs/**"
-      - "dashboard/**"
-      - "tests/**"
-      - "requirements.txt"
-      - "pyproject.toml"
-      - "dashboard/**"
-      - "tests/**"
-      - "requirements.txt"
-      - "pyproject.toml"
   pull_request:
     paths:
       - "terraform/**"
