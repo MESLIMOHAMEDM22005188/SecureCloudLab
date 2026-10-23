@@ -504,7 +504,8 @@
         <div class="nav-label">Workspace</div>
         <a class="nav-item active" href="#overview">Overview</a>
         <a class="nav-item" href="#terraform">Terraform Security</a>
-        <a class="nav-item" href="#checkov">Checkov Scans</a>\n        <a class="nav-item" href="#findings">Security Findings</a>
+        <a class="nav-item" href="#checkov">Checkov Scans</a>
+        <a class="nav-item" href="#findings">Security Findings</a>
         <a class="nav-item" href="#history">Report History</a>
 
         <div class="sidebar-footer">
@@ -786,7 +787,9 @@
         } catch (error) {
             outputStatus.textContent = "Connection error";
             outputContent.textContent =
-                "Could not reach the dashboard API. Make sure FastAPI is running.\n\n" +
+                "Could not reach the dashboard API. Make sure FastAPI is running.
+
+" +
                 String(error);
         } finally {
             buttons.forEach(button => button.disabled = false);
