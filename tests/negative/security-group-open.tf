@@ -1,3 +1,14 @@
+terraform {
+  required_version = ">= 1.9.8"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 6.36.0"
+    }
+  }
+}
+
 resource "aws_security_group" "intentionally_insecure" {
   name        = "negative-test-open-ssh"
   description = "Intentionally insecure fixture for Checkov negative testing"
