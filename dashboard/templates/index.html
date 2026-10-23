@@ -348,6 +348,36 @@
             margin-top: 28px;
         }
 
+        .finding-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 14px 0;
+        }
+
+        .finding-controls input, .finding-controls select {
+            background: #080d18;
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 7px;
+            padding: 10px;
+            min-width: 150px;
+        }
+
+        .findings-table-wrap { overflow-x: auto; }
+        .findings-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .findings-table th, .findings-table td {
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            padding: 12px 10px;
+            vertical-align: top;
+            min-width: 100px;
+        }
+        .findings-table th { color: var(--muted); font-weight: 600; }
+        .severity-tag { display: inline-block; border-radius: 5px; padding: 4px 7px; background: #253047; }
+        .severity-tag.CRITICAL, .severity-tag.HIGH { color: var(--red); background: #3b202b; }
+        .severity-tag.MEDIUM { color: var(--yellow); background: #3a3020; }
+
         .history-row {
             display: grid;
             grid-template-columns: 1.2fr 1fr 1fr auto;
@@ -474,7 +504,7 @@
         <div class="nav-label">Workspace</div>
         <a class="nav-item active" href="#overview">Overview</a>
         <a class="nav-item" href="#terraform">Terraform Security</a>
-        <a class="nav-item" href="#checkov">Checkov Scans</a>
+        <a class="nav-item" href="#checkov">Checkov Scans</a>\n        <a class="nav-item" href="#findings">Security Findings</a>
         <a class="nav-item" href="#history">Report History</a>
 
         <div class="sidebar-footer">
@@ -647,6 +677,28 @@
             </div>
         </section>
 
+        <section class="card history" id="findings">
+            <div class="section-heading">
+                <h3>Security Findings</h3>
+                <span id="findings-count">Latest Checkov scan</span>
+            </div>
+            <div class="finding-controls">
+                <select id="severity-filter" aria-label="Filter by severity">
+                    <option value="">All severities</option>
+                    <option value="CRITICAL">Critical</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                    <option value="INFO">Info</option>
+                </select>
+                <input id="finding-search" type="search" placeholder="Search check, file, resource…" aria-label="Search findings">
+                <button class="btn" onclick="loadFindings()">Apply filters</button>
+                <button class="btn" onclick="loadTrends()">Load scan trends</button>
+            </div>
+            <div id="trend-summary" class="subtitle"></div>
+            <div id="findings-list" class="empty">Run a Checkov scan to populate findings.</div>
+        </section>
+
         <section class="card output" id="output-section" aria-live="polite">
             <h4 id="output-title">Execution results</h4>
             <div class="subtitle" id="output-status"></div>
@@ -739,6 +791,73 @@
         } finally {
             buttons.forEach(button => button.disabled = false);
         }
+    }
+
+    async function loadFindings() {
+        const container = document.getElementById("findings-list");
+        const severity = document.getElementById("severity-filter").value;
+        const search = document.getElementById("finding-search").value.trim();
+        const params = new URLSearchParams();
+        if (severity) params.set("severity", severity);
+        if (search) params.set("search", search);
+        try {
+            const response = await fetch("/api/findings?" + params.toString());
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.detail || "Unable to load findings");
+            document.getElementById("findings-count").textContent =
+                payload.count + " finding(s) · static Terraform analysis";
+            if (!payload.findings.length) {
+                container.className = "empty";
+                container.textContent = "No findings match these filters. Run a scan if this is the first visit.";
+                return;
+            }
+            const wrap = document.createElement("div");
+            wrap.className = "findings-table-wrap";
+            const table = document.createElement("table");
+            table.className = "findings-table";
+            const thead = document.createElement("thead");
+            const header = document.createElement("tr");
+            ["Severity", "Check", "File", "Resource", "Recommended remediation"].forEach(label => {
+                const th = document.createElement("th"); th.textContent = label; header.appendChild(th);
+            });
+            thead.appendChild(header); table.appendChild(thead);
+            const tbody = document.createElement("tbody");
+            payload.findings.forEach(finding => {
+                const tr = document.createElement("tr");
+                const severityCell = document.createElement("td");
+                const tag = document.createElement("span");
+                tag.className = "severity-tag " + finding.severity;
+                tag.textContent = finding.severity;
+                severityCell.appendChild(tag);
+                const values = [finding.check_id + " · " + finding.check_name,
+                    finding.file_path, finding.resource, finding.remediation];
+                tr.appendChild(severityCell);
+                values.forEach(value => { const td = document.createElement("td"); td.textContent = value || "—"; tr.appendChild(td); });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody); wrap.appendChild(table);
+            container.className = ""; container.replaceChildren(wrap);
+        } catch (error) {
+            container.className = "empty";
+            container.textContent = "Findings unavailable: " + String(error);
+        }
+    }
+
+    async function loadTrends() {
+        const target = document.getElementById("trend-summary");
+        try {
+            const response = await fetch("/api/reports/trends");
+            const payload = await response.json();
+            if (!response.ok) throw new Error("Unable to load trends");
+            const scans = payload.scans || [];
+            target.textContent = scans.length
+                ? scans.slice(-5).map(scan =>
+                    new Date(scan.timestamp).toLocaleString() + ": " +
+                    scan.open_findings + " open, " + scan.new_findings +
+                    " new, " + scan.resolved_findings + " resolved"
+                  ).join(" | ")
+                : "No saved Checkov scans available yet.";
+        } catch (error) { target.textContent = String(error); }
     }
 
     async function loadReports() {
