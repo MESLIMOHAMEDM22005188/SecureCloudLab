@@ -1,0 +1,48 @@
+name: Dashboard security checks
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "dashboard/**"
+      - "tests/**"
+      - "requirements-*.txt"
+      - ".github/workflows/dashboard-security.yml"
+  pull_request:
+    paths:
+      - "dashboard/**"
+      - "tests/**"
+      - "requirements-*.txt"
+      - ".github/workflows/dashboard-security.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashboard-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-audit:
+    name: Python tests and dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements-dev.txt
+
+      - name: Run unit tests
+        run: python -m pytest -q
+
+      - name: Audit Python dependencies
+        run: python -m pip_audit -r requirements-dashboard.txt
