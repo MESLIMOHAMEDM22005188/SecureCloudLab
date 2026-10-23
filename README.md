@@ -42,6 +42,37 @@ Default subnet CIDRs are `10.0.1.0/24` and `10.0.2.0/24` for public subnets, and
 - `docs/secret-incident-response.md`: response procedure for exposed secrets.
 - `docs/security-monitoring.md`: AWS Config, GuardDuty, EventBridge, and alert setup.
 
+
+## Dashboard: findings lifecycle
+
+Install and run the local dashboard:
+
+```powershell
+python -m pip install -r requirements-dashboard.txt
+python -m uvicorn dashboard.app:app --reload
+```
+
+Open `http://127.0.0.1:8000`, run a Checkov scan, then use the Security Findings section to filter by severity or search for a check, file, or resource. Findings include a Checkov control ID, remediation guidance, and `deployment_confirmed: false`: static IaC analysis does not prove that a resource is deployed in AWS.
+
+API endpoints:
+- `GET /api/findings?severity=HIGH&search=ssh`: filter findings from the latest Checkov scan.
+- `GET /api/reports?limit=50`: recent scan history.
+- `GET /api/reports/trends`: open, new, and resolved finding counts across saved main scans.
+- `GET /api/reports/{report_id}/export.json` and `/export.html`: export report evidence.
+- `GET /api/health`: API health.
+
+Reports are stored in `dashboard/reports.db` (SQLite). Legacy JSON reports are imported once into the database for compatibility. The database and generated report files are local runtime data and should not be committed.
+
+Run Python tests and audit the dashboard dependencies:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+python -m pip_audit -r requirements-dashboard.txt
+```
+
+GitHub Actions runs pytest and pip-audit. The Terraform Checkov job is configured to fail for high/critical findings. Check the actual workflow results before considering a change verified.
+
 ## Local verification
 
 Run from the `terraform` directory:
