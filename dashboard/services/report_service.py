@@ -1,142 +1,135 @@
 import json
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-
-# SecureCloudLab project paths
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REPORTS_DIR = PROJECT_ROOT / "dashboard" / "reports"
+DATABASE_PATH = PROJECT_ROOT / "dashboard" / "reports.db"
 
 
-def ensure_reports_directory() -> None:
-    """Create the reports directory if it does not exist."""
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def save_report(
-    report_type: str,
-    report_data: dict[str, Any],
-) -> dict[str, Any]:
-    """
-    Save a security scan report as a JSON file.
-
-    Args:
-        report_type: Type of scan, such as 'checkov', 'terraform',
-                     or 'negative-test'.
-        report_data: Results returned by the scan service.
-
-    Returns:
-        A dictionary containing the saved report metadata.
-    """
-    ensure_reports_directory()
-
-    timestamp = datetime.now(timezone.utc)
-    report_id = f"{timestamp.strftime('%Y%m%dT%H%M%SZ')}_{uuid4().hex[:8]}"
-
-    report = {
-        "id": report_id,
-        "type": report_type,
-        "timestamp": timestamp.isoformat(),
-        "data": report_data,
-    }
-
-    report_path = REPORTS_DIR / f"{report_id}.json"
-
-    try:
-        report_path.write_text(
-            json.dumps(report, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+def _connect() -> sqlite3.Connection:
+    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(DATABASE_PATH, timeout=10)
+    connection.row_factory = sqlite3.Row
+    connection.execute("""
+        CREATE TABLE IF NOT EXISTS reports (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            data_json TEXT NOT NULL
         )
-    except OSError as exc:
-        raise RuntimeError(f"Failed to save report: {exc}") from exc
+    """)
+    connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_reports_timestamp ON reports(timestamp DESC)"
+    )
+    return connection
 
-    return {
-        "id": report_id,
-        "type": report_type,
-        "timestamp": report["timestamp"],
-        "file": report_path.name,
-    }
+
+def _migrate_json_reports(connection: sqlite3.Connection) -> None:
+    """Import legacy JSON reports once; preserve existing local history."""
+    if not REPORTS_DIR.is_dir():
+        return
+    for path in REPORTS_DIR.glob("*.json"):
+        try:
+            report = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(report, dict) or not isinstance(report.get("data"), dict):
+                continue
+            report_id = str(report.get("id") or path.stem)
+            report_type = str(report.get("type") or "unknown")
+            timestamp = str(report.get("timestamp") or "")
+            connection.execute(
+                "INSERT OR IGNORE INTO reports(id, type, timestamp, data_json) VALUES (?, ?, ?, ?)",
+                (report_id, report_type, timestamp, json.dumps(report["data"], ensure_ascii=False)),
+            )
+        except (OSError, json.JSONDecodeError, TypeError):
+            continue
+
+
+def save_report(report_type: str, report_data: dict[str, Any]) -> dict[str, Any]:
+    timestamp = datetime.now(timezone.utc).isoformat()
+    report_id = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}_{uuid4().hex[:8]}"
+    try:
+        with _connect() as connection:
+            _migrate_json_reports(connection)
+            connection.execute(
+                "INSERT INTO reports(id, type, timestamp, data_json) VALUES (?, ?, ?, ?)",
+                (report_id, report_type, timestamp, json.dumps(report_data, ensure_ascii=False)),
+            )
+    except (sqlite3.Error, OSError, TypeError) as exc:
+        raise RuntimeError(f"Failed to save report to SQLite: {exc}") from exc
+    return {"id": report_id, "type": report_type, "timestamp": timestamp}
 
 
 def list_reports(limit: int = 50) -> list[dict[str, Any]]:
-    """
-    Return the most recent reports, newest first.
-
-    Args:
-        limit: Maximum number of reports to return.
-    """
-    if limit < 1:
-        raise ValueError("Limit must be greater than zero.")
-
-    ensure_reports_directory()
+    if not 1 <= limit <= 500:
+        raise ValueError("Limit must be between 1 and 500.")
+    with _connect() as connection:
+        _migrate_json_reports(connection)
+        rows = connection.execute(
+            "SELECT id, type, timestamp, data_json FROM reports ORDER BY timestamp DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
     reports = []
-
-    for report_path in REPORTS_DIR.glob("*.json"):
+    for row in rows:
         try:
-            report = json.loads(report_path.read_text(encoding="utf-8"))
-
-            reports.append({
-                "id": report.get("id", report_path.stem),
-                "type": report.get("type", "unknown"),
-                "timestamp": report.get("timestamp"),
-                "file": report_path.name,
-            })
-
-        except (OSError, json.JSONDecodeError):
-            # Ignore unreadable or invalid report files.
-            continue
-
-    reports.sort(
-        key=lambda item: item.get("timestamp") or "",
-        reverse=True,
-    )
-
-    return reports[:limit]
+            data = json.loads(row["data_json"])
+        except json.JSONDecodeError:
+            data = {}
+        reports.append({
+            "id": row["id"],
+            "type": row["type"],
+            "timestamp": row["timestamp"],
+            "summary": {
+                "passed": data.get("passed", 0),
+                "failed": data.get("failed", 0),
+                "critical": data.get("severity_counts", {}).get("CRITICAL", 0),
+                "high": data.get("severity_counts", {}).get("HIGH", 0),
+            },
+        })
+    return reports
 
 
 def get_report(report_id: str) -> dict[str, Any] | None:
-    """
-    Retrieve a report by its ID.
-
-    Returns None if the report does not exist or is invalid.
-    """
-    # Restrict IDs to prevent path traversal.
-    if (
-        not report_id
-        or len(report_id) > 64
-        or any(char not in "abcdefghijklmnopqrstuvwxyz"
-               "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for char in report_id)
-    ):
+    if (not report_id or len(report_id) > 64
+            or any(char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for char in report_id)):
         return None
-
-    report_path = REPORTS_DIR / f"{report_id}.json"
-
-    if not report_path.is_file():
+    with _connect() as connection:
+        _migrate_json_reports(connection)
+        row = connection.execute(
+            "SELECT id, type, timestamp, data_json FROM reports WHERE id = ?",
+            (report_id,),
+        ).fetchone()
+    if row is None:
         return None
-
     try:
-        report = json.loads(report_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        data = json.loads(row["data_json"])
+    except json.JSONDecodeError:
         return None
+    return {"id": row["id"], "type": row["type"], "timestamp": row["timestamp"], "data": data}
 
-    return report if isinstance(report, dict) else None
 
-
-def delete_report(report_id: str) -> bool:
-    """
-    Delete a report by its ID.
-
-    Returns True if the report was deleted, otherwise False.
-    """
-    if get_report(report_id) is None:
-        return False
-
-    report_path = REPORTS_DIR / f"{report_id}.json"
-
-    try:
-        report_path.unlink()
-        return True
-    except OSError:
-        return False
+def report_trends() -> dict[str, Any]:
+    scans = [r for r in list_reports(200) if r["type"] in {"checkov", "negative-test"}]
+    scans.reverse()
+    trend = []
+    previous: set[str] | None = None
+    for scan in scans:
+        detail = get_report(scan["id"]) or {}
+        findings = (detail.get("data") or {}).get("results", [])
+        current = {
+            f"{item.get('check_id', 'unknown')}|{item.get('file_path', '')}|{item.get('resource', '')}"
+            for item in findings if isinstance(item, dict)
+        }
+        trend.append({
+            "id": scan["id"],
+            "timestamp": scan["timestamp"],
+            "type": scan["type"],
+            "open_findings": len(current),
+            "new_findings": len(current if previous is None else current - previous),
+            "resolved_findings": 0 if previous is None else len(previous - current),
+        })
+        previous = current
+    return {"scans": trend}
