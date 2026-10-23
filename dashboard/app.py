@@ -1,5 +1,4 @@
 from html import escape
-import json
 from pathlib import Path
 from typing import Any
 
@@ -64,7 +63,7 @@ def _run_and_save_scan(scan_type: str, runner) -> dict[str, Any]:
     report = runner()
     # Keep execution failures visible in history instead of silently losing evidence.
     if report.get("success"):
-        findings = normalize_findings(report)
+        findings = report.get("results") or normalize_findings(report)
         report["results"] = findings
         report["severity_counts"] = severity_counts(findings)
     saved = save_report(scan_type, report)
