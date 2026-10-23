@@ -11,6 +11,16 @@ _REMEDIATION_RULES = (
 )
 
 
+def classify_severity(check_id: str, check_name: str) -> tuple[str, str]:
+    """Use Checkov-provided severity when present; otherwise label a transparent heuristic."""
+    text = f"{check_id} {check_name}".upper()
+    if any(token in text for token in ("0.0.0.0/0", "PUBLIC SSH", "PORT 22", "CKV_AWS_24", "PUBLICLY ACCESSIBLE")):
+        return "HIGH", "heuristic"
+    if any(token in text for token in ("ENCRYPT", "MFA", "LOGGING", "CLOUDTRAIL", "AUDIT")):
+        return "MEDIUM", "heuristic"
+    return "MEDIUM", "heuristic"
+
+
 def recommendation_for(check_id: str, check_name: str) -> str:
     text = f"{check_id} {check_name}".upper()
     for tokens, recommendation in _REMEDIATION_RULES:
@@ -38,7 +48,7 @@ def normalize_findings(report: dict[str, Any]) -> list[dict[str, Any]]:
         findings.append({
             "check_id": check_id,
             "check_name": check_name,
-            "severity": severity,
+            "severity": severity,\n            "severity_source": severity_source,
             "file_path": str(item.get("file_path") or item.get("file") or "Unknown"),
             "resource": str(item.get("resource") or "Unknown"),
             "guideline": item.get("guideline"),
