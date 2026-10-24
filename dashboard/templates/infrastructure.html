@@ -1,0 +1,254 @@
+
+{% extends "base.html" %}
+
+{% block title %}Infrastructure | SecureCloudLab{% endblock %}
+{% block breadcrumb %}Infrastructure{% endblock %}
+
+{% block head %}
+<meta name="description" content="Configure and generate cloud infrastructure plans with SecureCloudLab.">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <span class="eyebrow">CLOUD ENVIRONMENT</span>
+        <h1>Infrastructure</h1>
+        <p>Configure your network architecture and generate Terraform configuration files.</p>
+    </div>
+
+    <span class="environment-badge">
+        <span class="status-dot"></span>
+        Planning mode
+    </span>
+</div>
+
+<!-- Résumé -->
+<div class="stats-grid">
+    <article class="stat-card">
+        <div class="stat-label">Network CIDR</div>
+        <div class="stat-value" id="stat-network">Not configured</div>
+        <div class="stat-description">Main IPv4 network</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-label">Subnets</div>
+        <div class="stat-value" id="stat-subnets">0</div>
+        <div class="stat-description">Public and private segments</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-label">Virtual hosts</div>
+        <div class="stat-value" id="stat-hosts">0</div>
+        <div class="stat-description">Planned host addresses</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-label">Deployment</div>
+        <div class="stat-value">Not deployed</div>
+        <div class="stat-description">No cloud resources created</div>
+    </article>
+</div>
+
+<div class="infrastructure-layout">
+
+    <!-- Formulaire de configuration -->
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>Network configuration</h2>
+                <p>Define the address space and subnet layout.</p>
+            </div>
+            <span class="panel-step">01</span>
+        </div>
+
+        <form id="infrastructure-form">
+
+            <div class="form-group">
+                <label for="network-cidr">Network CIDR</label>
+                <input
+                        type="text"
+                        id="network-cidr"
+                        name="cidr"
+                        value="10.0.0.0/16"
+                        placeholder="10.0.0.0/16"
+                        required
+                >
+                <small>Example: 10.0.0.0/16</small>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="subnet-prefix">Subnet prefix</label>
+                    <select id="subnet-prefix" name="subnet_prefix">
+                        <option value="16">/16</option>
+                        <option value="20">/20</option>
+                        <option value="22">/22</option>
+                        <option value="24" selected>/24</option>
+                        <option value="25">/25</option>
+                        <option value="26">/26</option>
+                        <option value="27">/27</option>
+                        <option value="28">/28</option>
+                        <option value="29">/29</option>
+                        <option value="30">/30</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="public-subnets">Public subnets</label>
+                    <input
+                            type="number"
+                            id="public-subnets"
+                            name="public_subnets"
+                            value="2"
+                            min="0"
+                            max="128"
+                            required
+                    >
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="private-subnets">Private subnets</label>
+                    <input
+                            type="number"
+                            id="private-subnets"
+                            name="private_subnets"
+                            value="2"
+                            min="0"
+                            max="128"
+                            required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="public-hosts">Hosts per public subnet</label>
+                    <input
+                            type="number"
+                            id="public-hosts"
+                            name="public_hosts_per_subnet"
+                            value="2"
+                            min="0"
+                            max="100"
+                            required
+                    >
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="private-hosts">Hosts per private subnet</label>
+                <input
+                        type="number"
+                        id="private-hosts"
+                        name="private_hosts_per_subnet"
+                        value="2"
+                        min="0"
+                        max="100"
+                        required
+                >
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="plan-button">
+                    Generate network plan
+                </button>
+
+                <button type="button" class="btn btn-secondary" id="reset-button">
+                    Reset
+                </button>
+            </div>
+        </form>
+
+        <div id="form-message" class="message" role="status" aria-live="polite" hidden></div>
+    </section>
+
+    <!-- Résultat du plan -->
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>Infrastructure overview</h2>
+                <p>Review your planned network segments.</p>
+            </div>
+            <span class="panel-step">02</span>
+        </div>
+
+        <div id="plan-empty" class="empty-state">
+            <div class="empty-state-icon">⌘</div>
+            <h3>No infrastructure plan yet</h3>
+            <p>Configure your network and generate a plan to see the results here.</p>
+        </div>
+
+        <div id="plan-results" hidden>
+            <div class="network-summary">
+                <span class="summary-label">Main network</span>
+                <strong id="result-network">—</strong>
+                <span id="result-prefix" class="muted-text"></span>
+            </div>
+
+            <div class="subnet-section">
+                <div class="subnet-section-header">
+                    <h3>Public subnets</h3>
+                    <span class="subnet-count" id="public-count">0</span>
+                </div>
+                <div id="public-subnet-list" class="subnet-list"></div>
+            </div>
+
+            <div class="subnet-section">
+                <div class="subnet-section-header">
+                    <h3>Private subnets</h3>
+                    <span class="subnet-count" id="private-count">0</span>
+                </div>
+                <div id="private-subnet-list" class="subnet-list"></div>
+            </div>
+
+            <div class="result-actions">
+                <a href="/topology" class="btn btn-secondary">
+                    View topology
+                </a>
+                <button type="button" class="btn btn-primary" id="generate-terraform-button">
+                    Generate Terraform
+                </button>
+            </div>
+        </div>
+
+        <div id="terraform-message" class="message" role="status" aria-live="polite" hidden></div>
+    </section>
+</div>
+
+<!-- Résultat Terraform -->
+<section class="panel terraform-panel">
+    <div class="panel-header">
+        <div>
+            <h2>Terraform configuration</h2>
+            <p>Generate infrastructure code from the current network plan.</p>
+        </div>
+        <span class="panel-step">03</span>
+    </div>
+
+    <div id="terraform-empty" class="empty-state compact">
+        <p>Generate a network plan first, then create the Terraform configuration.</p>
+    </div>
+
+    <div id="terraform-results" hidden>
+        <div class="terraform-toolbar">
+            <span id="terraform-filename">main.tf</span>
+            <button type="button" class="btn btn-secondary" id="copy-terraform-button">
+                Copy code
+            </button>
+        </div>
+
+        <pre class="code-preview"><code id="terraform-code"></code></pre>
+
+        <p class="notice">
+            This action generates configuration files only. It does not run
+            <code>terraform apply</code> or create resources in a cloud account.
+        </p>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/infrastructure.js') }}" defer></script>
+{% endblock %}

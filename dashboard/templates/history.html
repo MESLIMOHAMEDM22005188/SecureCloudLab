@@ -1,0 +1,213 @@
+
+{% extends "base.html" %}
+
+{% block head %}
+<meta name="description" content="Review previous infrastructure security scans in SecureCloudLab.">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <span class="eyebrow">AUDIT TRAIL</span>
+    <h1>Scan History</h1>
+    <p>Review previous security scans and track your infrastructure analysis results.</p>
+  </div>
+
+  <a href="/security" class="btn btn-primary">
+    Run a new scan
+  </a>
+</div>
+
+<!-- Statistiques -->
+<div class="stats-grid">
+  <article class="stat-card">
+    <div class="stat-label">Total scans</div>
+    <div class="stat-value" id="history-total-scans">0</div>
+    <div class="stat-description">Recorded scan executions</div>
+  </article>
+
+  <article class="stat-card">
+    <div class="stat-label">Successful scans</div>
+    <div class="stat-value" id="history-successful-scans">0</div>
+    <div class="stat-description">Scans completed successfully</div>
+  </article>
+
+  <article class="stat-card">
+    <div class="stat-label">Failed scans</div>
+    <div class="stat-value" id="history-failed-scans">0</div>
+    <div class="stat-description">Scans that encountered an error</div>
+  </article>
+
+  <article class="stat-card">
+    <div class="stat-label">Latest scan</div>
+    <div class="stat-value" id="history-latest-scan">—</div>
+    <div class="stat-description">Most recent recorded execution</div>
+  </article>
+</div>
+
+<!-- Historique -->
+<section class="panel">
+  <div class="panel-header">
+    <div>
+      <h2>Previous scans</h2>
+      <p>Search, filter and inspect recorded scan executions.</p>
+    </div>
+    <span class="panel-step">01</span>
+  </div>
+
+  <div class="history-toolbar">
+    <div class="form-group search-group">
+      <label for="history-search">Search</label>
+      <input
+              type="search"
+              id="history-search"
+              placeholder="Search by scan ID, target or scanner..."
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="history-status-filter">Status</label>
+      <select id="history-status-filter">
+        <option value="all">All statuses</option>
+        <option value="success">Successful</option>
+        <option value="failed">Failed</option>
+        <option value="running">Running</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="history-scanner-filter">Scanner</label>
+      <select id="history-scanner-filter">
+        <option value="all">All scanners</option>
+        <option value="checkov">Checkov</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="history-message" class="message" role="status" aria-live="polite" hidden></div>
+
+  <div id="history-loading" class="empty-state" hidden>
+    <p>Loading scan history...</p>
+  </div>
+
+  <div id="history-empty" class="empty-state">
+    <div class="empty-state-icon">◷</div>
+    <h3>No scan history available</h3>
+    <p>Once you run a security scan, its results can be recorded here.</p>
+    <a href="/security" class="btn btn-primary">
+      Go to security analysis
+    </a>
+  </div>
+
+  <div id="history-table-container" hidden>
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+        <tr>
+          <th>Scan ID</th>
+          <th>Date</th>
+          <th>Target</th>
+          <th>Scanner</th>
+          <th>Findings</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody id="history-table-body"></tbody>
+      </table>
+    </div>
+
+    <div id="history-no-match" class="empty-state compact" hidden>
+      <p>No scans match the selected filters.</p>
+    </div>
+  </div>
+
+  <div class="history-footer">
+    <span id="history-results-count" class="muted-text">0 scans</span>
+
+    <button
+            type="button"
+            class="btn btn-secondary"
+            id="history-refresh-button"
+    >
+      Refresh history
+    </button>
+  </div>
+</section>
+
+<!-- Détails d'un scan sélectionné -->
+<section class="panel">
+  <div class="panel-header">
+    <div>
+      <h2>Scan details</h2>
+      <p>Inspect the metadata and findings associated with a selected scan.</p>
+    </div>
+    <span class="panel-step">02</span>
+  </div>
+
+  <div id="history-details-empty" class="empty-state compact">
+    <p>Select a scan from the history table to inspect its details.</p>
+  </div>
+
+  <div id="history-details" hidden>
+    <div class="scan-summary-grid">
+      <div class="summary-item">
+        <span class="summary-label">Scan ID</span>
+        <strong id="detail-scan-id">—</strong>
+      </div>
+
+      <div class="summary-item">
+        <span class="summary-label">Execution date</span>
+        <strong id="detail-scan-date">—</strong>
+      </div>
+
+      <div class="summary-item">
+        <span class="summary-label">Target</span>
+        <strong id="detail-scan-target">—</strong>
+      </div>
+
+      <div class="summary-item">
+        <span class="summary-label">Scanner version</span>
+        <strong id="detail-scanner-version">—</strong>
+      </div>
+
+      <div class="summary-item">
+        <span class="summary-label">Passed checks</span>
+        <strong id="detail-passed-checks">—</strong>
+      </div>
+
+      <div class="summary-item">
+        <span class="summary-label">Failed checks</span>
+        <strong id="detail-failed-checks">—</strong>
+      </div>
+    </div>
+
+    <div class="detail-actions">
+      <button
+              type="button"
+              class="btn btn-secondary"
+              id="history-close-details"
+      >
+        Close details
+      </button>
+    </div>
+  </div>
+</section>
+
+<div class="page-actions">
+  <a href="/security" class="btn btn-secondary">
+    Back to security analysis
+  </a>
+
+  <a href="/" class="btn btn-primary">
+    Return to dashboard
+  </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/history.js') }}" defer></script>
+{% endblock %}

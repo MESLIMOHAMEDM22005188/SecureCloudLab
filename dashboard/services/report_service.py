@@ -158,3 +158,25 @@ def compare_scans(old_scan_id: int, new_scan_id: int) -> dict[str, Any] | None:
         "introduced": introduced,
         "unchanged": unchanged,
     }
+
+def save_report(report: dict[str, Any]) -> int:
+    """Save a Checkov report using the existing scan database."""
+    from dashboard.services.findings_service import normalize_findings
+
+    findings = normalize_findings(report)
+
+    return save_scan(
+        findings=findings,
+        target=str(report.get("target", "terraform")),
+        status="completed" if report.get("success", True) else "failed",
+    )
+
+
+def list_reports(limit: int = 20) -> list[dict[str, Any]]:
+    """Compatibility wrapper for the existing scan history."""
+    return list_scans(limit)
+
+
+def get_report(report_id: int) -> dict[str, Any] | None:
+    """Retrieve a report from the existing scan history."""
+    return get_scan(report_id)

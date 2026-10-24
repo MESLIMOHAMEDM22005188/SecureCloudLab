@@ -1,0 +1,170 @@
+
+{% extends "base.html" %}
+
+{% block title %}Network Topology | SecureCloudLab{% endblock %}
+{% block breadcrumb %}Network Topology{% endblock %}
+
+{% block head %}
+<meta name="description" content="Visualize planned cloud network topology with SecureCloudLab.">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <span class="eyebrow">NETWORK ARCHITECTURE</span>
+        <h1>Network Topology</h1>
+        <p>Explore the relationships between your network, subnets and hosts.</p>
+    </div>
+
+    <div class="header-actions">
+        <span class="environment-badge">
+            <span class="status-dot"></span>
+            Planning mode
+        </span>
+        <button type="button" class="btn btn-secondary" id="refresh-topology">
+            Refresh topology
+        </button>
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="stats-grid">
+    <article class="stat-card">
+        <div class="stat-label">Main network</div>
+        <div class="stat-value" id="topology-network">—</div>
+        <div class="stat-description">IPv4 address space</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-label">Total nodes</div>
+        <div class="stat-value" id="topology-node-count">0</div>
+        <div class="stat-description">Network components</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-label">Subnets</div>
+        <div class="stat-value" id="topology-subnet-count">0</div>
+        <div class="stat-description">Public and private segments</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-label">Hosts</div>
+        <div class="stat-value" id="topology-host-count">0</div>
+        <div class="stat-description">Planned IP addresses</div>
+    </article>
+</div>
+
+<!-- Légende -->
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Topology map</h2>
+            <p>Each connection represents a parent-child relationship in the planned network.</p>
+        </div>
+        <span class="panel-step">01</span>
+    </div>
+
+    <div class="topology-legend">
+        <span class="legend-item">
+            <span class="legend-dot legend-network"></span>
+            Main network
+        </span>
+        <span class="legend-item">
+            <span class="legend-dot legend-public"></span>
+            Public subnet
+        </span>
+        <span class="legend-item">
+            <span class="legend-dot legend-private"></span>
+            Private subnet
+        </span>
+        <span class="legend-item">
+            <span class="legend-dot legend-host"></span>
+            Host
+        </span>
+    </div>
+
+    <div id="topology-message" class="message" role="status" aria-live="polite" hidden></div>
+
+    <div id="topology-empty" class="empty-state">
+        <div class="empty-state-icon">⌘</div>
+        <h3>No topology available</h3>
+        <p>Generate an infrastructure plan first to visualize its network topology.</p>
+        <a href="/infrastructure" class="btn btn-primary">
+            Configure infrastructure
+        </a>
+    </div>
+
+    <!-- Zone de visualisation -->
+    <div id="topology-container" class="topology-container" hidden>
+        <div class="topology-toolbar">
+            <span id="topology-status" class="muted-text">Plan loaded</span>
+            <div class="topology-toolbar-actions">
+                <button type="button" class="btn btn-secondary" id="topology-zoom-out"
+                        aria-label="Zoom out">−</button>
+                <button type="button" class="btn btn-secondary" id="topology-zoom-reset"
+                        aria-label="Reset zoom">Reset</button>
+                <button type="button" class="btn btn-secondary" id="topology-zoom-in"
+                        aria-label="Zoom in">+</button>
+            </div>
+        </div>
+
+        <div id="topology-canvas" class="topology-canvas">
+            <svg id="topology-svg"
+                 class="topology-svg"
+                 role="img"
+                 aria-label="Network topology diagram"
+                 viewBox="0 0 1000 600"
+                 preserveAspectRatio="xMidYMid meet">
+                <g id="topology-edges"></g>
+                <g id="topology-nodes"></g>
+            </svg>
+        </div>
+    </div>
+</section>
+
+<!-- Détails des composants -->
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Network components</h2>
+            <p>Inspect the CIDR ranges and IP addresses in the current plan.</p>
+        </div>
+        <span class="panel-step">02</span>
+    </div>
+
+    <div id="components-empty" class="empty-state compact">
+        <p>Component details will appear when a topology is available.</p>
+    </div>
+
+    <div id="components-container" hidden>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Type</th>
+                        <th>CIDR / IP address</th>
+                        <th>Parent subnet</th>
+                    </tr>
+                </thead>
+                <tbody id="topology-components-body"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<div class="page-actions">
+    <a href="/infrastructure" class="btn btn-secondary">
+        Back to infrastructure
+    </a>
+    <a href="/security" class="btn btn-primary">
+        Open security analysis
+    </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/topology.js') }}" defer></script>
+{% endblock %}

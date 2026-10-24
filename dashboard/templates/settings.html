@@ -1,0 +1,307 @@
+
+{% extends "base.html" %}
+
+{% block title %}Settings | SecureCloudLab{% endblock %}
+{% block breadcrumb %}Settings{% endblock %}
+
+{% block head %}
+<meta name="description" content="Configure SecureCloudLab application preferences and security tools.">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <span class="eyebrow">APPLICATION CONFIGURATION</span>
+        <h1>Settings</h1>
+        <p>Manage your workspace preferences and review the local security tool configuration.</p>
+    </div>
+
+    <span class="environment-badge">
+        <span class="status-dot"></span>
+        Local environment
+    </span>
+</div>
+
+<!-- État de l'environnement -->
+<div class="stats-grid">
+    <article class="stat-card">
+        <div class="stat-label">Application</div>
+        <div class="stat-value">SecureCloudLab</div>
+        <div class="stat-description">Cloud security workspace</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-label">Execution mode</div>
+        <div class="stat-value">Local</div>
+        <div class="stat-description">Runs in your local environment</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-label">Security scanner</div>
+        <div class="stat-value" id="settings-checkov-status">Unknown</div>
+        <div class="stat-description">Checkov availability</div>
+    </article>
+
+    <article class="stat-card">
+        <div class="stat-label">Deployment</div>
+        <div class="stat-value">Manual</div>
+        <div class="stat-description">No automatic cloud deployment</div>
+    </article>
+</div>
+
+<!-- Paramètres généraux -->
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>General settings</h2>
+            <p>Configure the default behavior of the workspace.</p>
+        </div>
+        <span class="panel-step">01</span>
+    </div>
+
+    <form id="general-settings-form">
+        <div class="settings-row">
+            <div class="settings-description">
+                <h3>Workspace name</h3>
+                <p>The name displayed in the application interface.</p>
+            </div>
+
+            <div class="settings-control">
+                <input
+                        type="text"
+                        id="settings-workspace-name"
+                        name="workspace_name"
+                        value="SecureCloudLab"
+                        maxlength="80"
+                        required
+                >
+            </div>
+        </div>
+
+        <div class="settings-row">
+            <div class="settings-description">
+                <h3>Default network CIDR</h3>
+                <p>IPv4 address range prefilled when configuring infrastructure.</p>
+            </div>
+
+            <div class="settings-control">
+                <input
+                        type="text"
+                        id="settings-default-cidr"
+                        name="default_cidr"
+                        value="10.0.0.0/16"
+                        placeholder="10.0.0.0/16"
+                        required
+                >
+            </div>
+        </div>
+
+        <div class="settings-row">
+            <div class="settings-description">
+                <h3>Default subnet prefix</h3>
+                <p>Prefix used for newly planned subnets.</p>
+            </div>
+
+            <div class="settings-control">
+                <select id="settings-subnet-prefix" name="subnet_prefix">
+                    <option value="20">/20</option>
+                    <option value="22">/22</option>
+                    <option value="24" selected>/24</option>
+                    <option value="25">/25</option>
+                    <option value="26">/26</option>
+                    <option value="27">/27</option>
+                    <option value="28">/28</option>
+                    <option value="29">/29</option>
+                    <option value="30">/30</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="settings-row">
+            <div class="settings-description">
+                <h3>Default subnet distribution</h3>
+                <p>Number of public and private subnets for a new network plan.</p>
+            </div>
+
+            <div class="settings-control settings-control-pair">
+                <div>
+                    <label for="settings-public-subnets">Public</label>
+                    <input
+                            type="number"
+                            id="settings-public-subnets"
+                            name="public_subnets"
+                            value="2"
+                            min="0"
+                            max="128"
+                            required
+                    >
+                </div>
+
+                <div>
+                    <label for="settings-private-subnets">Private</label>
+                    <input
+                            type="number"
+                            id="settings-private-subnets"
+                            name="private_subnets"
+                            value="2"
+                            min="0"
+                            max="128"
+                            required
+                    >
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="save-general-settings">
+                Save settings
+            </button>
+
+            <button type="reset" class="btn btn-secondary" id="reset-general-settings">
+                Reset form
+            </button>
+        </div>
+    </form>
+
+    <div id="settings-general-message" class="message" role="status" aria-live="polite" hidden></div>
+</section>
+
+<!-- Outils de sécurité -->
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Security tools</h2>
+            <p>Review the availability of tools used to analyze infrastructure configuration.</p>
+        </div>
+        <span class="panel-step">02</span>
+    </div>
+
+    <div class="settings-tool">
+        <div class="settings-tool-icon">CK</div>
+
+        <div class="settings-tool-info">
+            <h3>Checkov</h3>
+            <p>Scans infrastructure-as-code files for security misconfigurations.</p>
+            <span id="settings-checkov-detail" class="muted-text">
+                Availability has not been checked.
+            </span>
+        </div>
+
+        <button
+                type="button"
+                class="btn btn-secondary"
+                id="settings-checkov-check"
+        >
+            Check availability
+        </button>
+    </div>
+
+    <div class="settings-tool">
+        <div class="settings-tool-icon">TF</div>
+
+        <div class="settings-tool-info">
+            <h3>Terraform</h3>
+            <p>Generates infrastructure configuration files for later review and deployment.</p>
+            <span id="settings-terraform-detail" class="muted-text">
+                Generation status has not been checked.
+            </span>
+        </div>
+
+        <button
+                type="button"
+                class="btn btn-secondary"
+                id="settings-terraform-check"
+        >
+            Check availability
+        </button>
+    </div>
+
+    <div id="settings-tools-message" class="message" role="status" aria-live="polite" hidden></div>
+</section>
+
+<!-- Préférences de sécurité -->
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Security preferences</h2>
+            <p>Review how scans and generated infrastructure are handled.</p>
+        </div>
+        <span class="panel-step">03</span>
+    </div>
+
+    <div class="settings-row">
+        <div class="settings-description">
+            <h3>Manual deployment</h3>
+            <p>Cloud resources are not created automatically by this interface.</p>
+        </div>
+        <span class="settings-state">Enabled</span>
+    </div>
+
+    <div class="settings-row">
+        <div class="settings-description">
+            <h3>Scan before deployment</h3>
+            <p>Recommended workflow: generate Terraform, scan it, review findings, then deploy manually.</p>
+        </div>
+        <span class="settings-state">Recommended</span>
+    </div>
+
+    <div class="settings-row">
+        <div class="settings-description">
+            <h3>Credential handling</h3>
+            <p>Do not store cloud credentials, API keys or passwords directly in source files.</p>
+        </div>
+        <span class="settings-state">Best practice</span>
+    </div>
+</section>
+
+<!-- Chemins de travail -->
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Workspace paths</h2>
+            <p>Directories used by the project.</p>
+        </div>
+        <span class="panel-step">04</span>
+    </div>
+
+    <div class="settings-path">
+        <div>
+            <strong>Generated files</strong>
+            <p>Terraform configurations produced by the application.</p>
+        </div>
+        <code>generated/terraform/</code>
+    </div>
+
+    <div class="settings-path">
+        <div>
+            <strong>Dashboard templates</strong>
+            <p>HTML templates for the application pages.</p>
+        </div>
+        <code>dashboard/templates/</code>
+    </div>
+
+    <div class="settings-path">
+        <div>
+            <strong>Static assets</strong>
+            <p>Stylesheets and JavaScript files.</p>
+        </div>
+        <code>dashboard/static/</code>
+    </div>
+</section>
+
+<div class="page-actions">
+    <a href="/" class="btn btn-secondary">
+        Back to dashboard
+    </a>
+
+    <a href="/security" class="btn btn-primary">
+        Open security analysis
+    </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='/js/settings.js') }}" defer></script>
+{% endblock %}
